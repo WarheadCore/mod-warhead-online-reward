@@ -1,0 +1,56 @@
+#
+# This file is part of the WarheadCore Project. See AUTHORS file for Copyright information
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License as published by the
+# Free Software Foundation; either version 3 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+########################################
+# OnlineReward module configuration
+########################################
+
+###################################################################################################
+#
+#    OR.Enable
+#        Description: Include the entire online rewards module
+#        Default: 0
+#
+#    OR.PerOnline.Enable
+#        Description: Enable Type 1 (awards for general online on the server). Need configure DB table `online_reward`
+#        Default: 1
+#
+#    OR.PerTime.Enable
+#        Description: Type 2 (periodic awards for periods of time).
+#        Default: 1
+#
+#    OR.ForceSendMail.Enable
+#        Description: Send items via mail. If disable - send via `player->AddItem` if not bags slot, sends via mail
+#        Default: 0
+#
+#    OR.CoorectHistory.Enable
+#        Description: Enable fill db table `wh_online_rewards_history` for new reward
+#        Default: 1
+#
+
+OR.Enable = 0
+OR.PerOnline.Enable = 1
+OR.PerTime.Enable = 1
+OR.ForceSendMail.Enable = 0
+OR.CoorectHistory.Enable = 1
+
+###################################################################################################
+#
+#   LOGGING
+#
+
+Logger.module.or = 5,Console Modules
