@@ -90,6 +90,8 @@ public:
     void LoadDBData();
     [[nodiscard]] std::size_t GetLastId() const { return _lastId; }
 
+    void GetNextTimeForReward(Player* player, Seconds playedTime, OnlineReward const* onlineReward);
+
 private:
     void RewardPlayers();
     bool IsExistHistory(ObjectGuid::LowType lowGuid);
@@ -103,10 +105,9 @@ private:
     void AddHistory(ObjectGuid::LowType lowGuid, uint32 rewardId, Seconds playerOnlineTime);
 
     void AddRewardHistoryAsync(ObjectGuid::LowType lowGuid, QueryResult result);
-
     void CheckPlayerForReward(ObjectGuid::LowType lowGuid, Seconds playedTime, OnlineReward const* onlineReward);
-    void SendRewards();
 
+    void SendRewards();
     void ScheduleReward();
 
     // Config

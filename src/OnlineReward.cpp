@@ -35,6 +35,7 @@ namespace
     constexpr auto OR_LOCALE_MESSAGE_MAIL       = 3;
     constexpr auto OR_LOCALE_MESSAGE_IN_GAME    = 4;
     constexpr auto OR_LOCALE_NOT_ENOUGH_BAG     = 5;
+    constexpr auto OR_LOCALE_NEXT               = 6;
 
     constexpr std::string_view GetLocaleText(uint32 textId, LocaleConstant localeConstant)
     {
@@ -53,6 +54,8 @@ namespace
                 return localeConstant == LOCALE_enUS ? "You were rewarded for online ({})." : "Вы были вознаграждены за онлайн ({}).";
             case OR_LOCALE_NOT_ENOUGH_BAG:
                 return localeConstant == LOCALE_enUS ? "Not enough room in the bag. Send via mail" : "У вас недостаточно места в сумке, награда будет ждать вас на почте";
+            case OR_LOCALE_NEXT:
+                return localeConstant == LOCALE_enUS ? "{}. Count: {}. Left: {}" : "{}. Кол-во: {}. Осталось: {}";
             default:
                 return "";
         }
@@ -67,6 +70,33 @@ namespace
             ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, LANG_UNIVERSAL, nullptr, nullptr, line);
             player->SendDirectMessage(&data);
         }
+    }
+
+    std::string GetItemNameLocale(uint32 itemID, int8 index_loc /*= DEFAULT_LOCALE*/)
+    {
+        ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemID);
+        ItemLocale const* itemLocale = sObjectMgr->GetItemLocale(itemID);
+        std::string name;
+
+        if (itemLocale)
+            name = itemLocale->Name[index_loc];
+
+        if (name.empty() && itemTemplate)
+            name = itemTemplate->Name1;
+
+        return std::move(name);
+    }
+
+    std::string GetItemLink(uint32 itemID, int8 index_loc /*= DEFAULT_LOCALE*/)
+    {
+        ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemID);
+        if (!itemTemplate)
+            return "";
+
+        std::string name = GetItemNameLocale(itemID, index_loc);
+        uint32 color = ItemQualityColors[itemTemplate->Quality];
+
+        return Acore::StringFormatFmt("|c{:08x}|Hitem:{}:0:0:0:0:0:0:0:0|h[{}]|h|r", color, itemID, name);
     }
 }
 
@@ -598,6 +628,49 @@ void OnlineRewardMgr::CheckPlayerForReward(ObjectGuid::LowType lowGuid, Seconds 
     }
 
     AddHistory(lowGuid, onlineReward->ID, playedTime);
+}
+
+void OnlineRewardMgr::GetNextTimeForReward(Player* player, Seconds playedTime, OnlineReward const* onlineReward)
+{
+    if (!onlineReward || !player || playedTime == 0s)
+        return;
+
+    auto lowGuid = player->GetGUID().GetCounter();
+    auto localeIndex = player->GetSession()->GetSessionDbLocaleIndex();
+    ChatHandler handler(player->GetSession());
+
+    auto PrintReward = [onlineReward, localeIndex, &handler](Seconds seconds)
+    {
+        for (auto const& [itemId, count] : onlineReward->Items)
+        {
+            auto item = GetItemLink(itemId, localeIndex);
+            auto left = seconds == 0s ? "<at next reward tick>" : Acore::Time::ToTimeString(seconds);
+            auto message = Acore::StringFormatFmt(GetLocaleText(OR_LOCALE_NEXT, localeIndex), item, count, left);
+            handler.PSendSysMessage(message.c_str());
+        }
+    };
+
+    auto rewardedSeconds = GetHistorySecondsForReward(lowGuid, onlineReward->ID);
+
+    if (onlineReward->IsPerOnline && _isPerOnlineEnable)
+    {
+        if (rewardedSeconds != 0s)
+            return;
+
+        PrintReward(onlineReward->Seconds - playedTime);
+    }
+    else if (!onlineReward->IsPerOnline && _isPerTimeEnable)
+    {
+        auto next = onlineReward->Seconds * (rewardedSeconds / onlineReward->Seconds + 1);
+
+        for (auto diffTime{ next }; next < playedTime; diffTime + onlineReward->Seconds)
+        {
+            PrintReward(0s);
+            next += onlineReward->Seconds;
+        }
+
+        PrintReward(next - playedTime);
+    }
 }
 
 void OnlineRewardMgr::SendRewards()

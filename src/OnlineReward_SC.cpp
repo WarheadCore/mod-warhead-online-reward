@@ -35,6 +35,7 @@ public:
             { "add",        HandleOnlineRewardAddCommand,       SEC_ADMINISTRATOR,  Console::Yes },
             { "delete",     HandleOnlineRewardDeleteCommand,    SEC_ADMINISTRATOR,  Console::Yes },
             { "list",       HandleOnlineRewardListCommand,      SEC_ADMINISTRATOR,  Console::Yes },
+            { "next",       HandleOnlineRewardNextCommand,      SEC_PLAYER,         Console::No },
             { "reload",     HandleOnlineRewardReloadCommand,    SEC_ADMINISTRATOR,  Console::Yes },
             { "init",       HandleOnlineRewardInitCommand,      SEC_ADMINISTRATOR,  Console::Yes },
         };
@@ -99,6 +100,20 @@ public:
 
             handler->SendSysMessage("--");
         }
+
+        return true;
+    }
+
+    static bool HandleOnlineRewardNextCommand(ChatHandler* handler)
+    {
+        auto player = handler->GetPlayer();
+        if (!player)
+            return false;
+
+        Seconds playedTimeSec{ player->GetTotalPlayedTime() };
+
+        for (auto const& [id, onlineReward] : sORMgr->GetOnlineRewards())
+            sORMgr->GetNextTimeForReward(player, playedTimeSec, &onlineReward);
 
         return true;
     }
