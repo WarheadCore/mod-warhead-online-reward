@@ -39,11 +39,11 @@ struct OnlineReward
     OnlineReward() = delete;
 
     OnlineReward(uint32 id, bool isPerOnline, Seconds time) :
-        ID(id), IsPerOnline(isPerOnline), Seconds(time) { }
+        ID(id), IsPerOnline(isPerOnline), RewardTime(time) { }
 
     uint32 ID{ 0 };
     bool IsPerOnline{ true };
-    Seconds Seconds{ 0s };
+    Seconds RewardTime{0s };
 
     RewardsVector Items;
     RewardsVector Reputations;

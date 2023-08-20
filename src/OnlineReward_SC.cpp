@@ -80,7 +80,7 @@ public:
 
         for (auto const& [id, onlineReward] : sORMgr->GetOnlineRewards())
         {
-            handler->PSendSysMessage(Acore::StringFormatFmt("{}. {}. IsPerOnline? {}", ++count, Acore::Time::ToTimeString(onlineReward.Seconds), onlineReward.IsPerOnline).c_str());
+            handler->PSendSysMessage(Acore::StringFormatFmt("{}. {}. IsPerOnline? {}", ++count, Acore::Time::ToTimeString(onlineReward.RewardTime), onlineReward.IsPerOnline).c_str());
 
             if (!onlineReward.Items.empty())
             {

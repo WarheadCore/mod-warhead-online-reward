@@ -84,7 +84,7 @@ namespace
         if (name.empty() && itemTemplate)
             name = itemTemplate->Name1;
 
-        return std::move(name);
+        return name;
     }
 
     std::string GetItemLink(uint32 itemID, int8 index_loc /*= DEFAULT_LOCALE*/)
@@ -317,7 +317,7 @@ bool OnlineRewardMgr::AddReward(uint32 id, bool isPerOnline, Seconds seconds, st
                 continue;
             }
 
-            if (*reputationCount > ReputationMgr::Reputation_Cap)
+            if (*reputationCount > static_cast<uint32>(ReputationMgr::Reputation_Cap))
             {
                 SendErrorMessage(Acore::StringFormatFmt("> OnlineReward: reputation count {} > repitation cap {}. Skip", *reputationCount, ReputationMgr::Reputation_Cap));
                 continue;
@@ -482,7 +482,7 @@ void OnlineRewardMgr::SendRewardForPlayer(Player* player, uint32 rewardID)
         return;
 
     ChatHandler handler{ player->GetSession() };
-    std::string playedTimeSecStr{ Acore::Time::ToTimeString(onlineReward->Seconds, TimeOutput::Seconds, TimeFormat::FullText) };
+    std::string playedTimeSecStr{ Acore::Time::ToTimeString(onlineReward->RewardTime, TimeOutput::Seconds, TimeFormat::FullText) };
     auto localeIndex{ player->GetSession()->GetSessionDbLocaleIndex() };
 
     auto SendItemsViaMail = [player, onlineReward, playedTimeSecStr, &localeIndex]()
@@ -609,7 +609,7 @@ void OnlineRewardMgr::CheckPlayerForReward(ObjectGuid::LowType lowGuid, Seconds 
 
     if (onlineReward->IsPerOnline)
     {
-        if (playedTime >= onlineReward->Seconds && rewardedSeconds == 0s)
+        if (playedTime >= onlineReward->RewardTime && rewardedSeconds == 0s)
         {
             AddToStore(lowGuid);
             AddHistory(lowGuid, onlineReward->ID, playedTime);
@@ -620,7 +620,7 @@ void OnlineRewardMgr::CheckPlayerForReward(ObjectGuid::LowType lowGuid, Seconds 
 
     if (!onlineReward->IsPerOnline)
     {
-        for (Seconds diffTime{ onlineReward->Seconds }; diffTime < playedTime; diffTime += onlineReward->Seconds)
+        for (Seconds diffTime{ onlineReward->RewardTime }; diffTime < playedTime; diffTime += onlineReward->RewardTime)
         {
             if (rewardedSeconds < diffTime)
                 AddToStore(lowGuid);
@@ -657,16 +657,16 @@ void OnlineRewardMgr::GetNextTimeForReward(Player* player, Seconds playedTime, O
         if (rewardedSeconds != 0s)
             return;
 
-        PrintReward(onlineReward->Seconds - playedTime);
+        PrintReward(onlineReward->RewardTime - playedTime);
     }
     else if (!onlineReward->IsPerOnline && _isPerTimeEnable)
     {
-        auto next = onlineReward->Seconds * (rewardedSeconds / onlineReward->Seconds + 1);
+        auto next = onlineReward->RewardTime * (rewardedSeconds / onlineReward->RewardTime + 1);
 
-        for (auto diffTime{ next }; next < playedTime; diffTime + onlineReward->Seconds)
+        for (auto diffTime{ next }; next < playedTime; diffTime + onlineReward->RewardTime)
         {
             PrintReward(0s);
-            next += onlineReward->Seconds;
+            next += onlineReward->RewardTime;
         }
 
         PrintReward(next - playedTime);
