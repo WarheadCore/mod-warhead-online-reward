@@ -22,7 +22,7 @@
 void AddSC_OnlineReward();
 
 // Add all
-void Addmod_online_rewardScripts()
+void Addmod_warhead_online_rewardScripts()
 {
     AddSC_OnlineReward();
 }
