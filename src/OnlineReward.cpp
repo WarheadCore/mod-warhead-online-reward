@@ -152,7 +152,7 @@ void OnlineRewardMgr::ScheduleReward()
     scheduler.Schedule(30s, [this](TaskContext context)
     {
         RewardPlayers();
-        context.Repeat(15min);
+        context.Repeat(1min);
     });
 }
 
