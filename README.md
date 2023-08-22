@@ -4,6 +4,7 @@
 1. `ID` - auto increment
 2. `IsPerOnline` - Issuing an reward once or periodically
 3. `Seconds` - Required amount of time online to receive an award (in seconds)
+4. `MinLevel` - Minimum required player level to receive the reward
 4. `Items` - Items for reward (itemid1[:count1],itemid2[:count2], ... itemidN[:countN])
 5. `Reputations` - Reputations for reward (rep1[:count1],rep2[:count2] ... repN[:countN])
 
