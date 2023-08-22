@@ -38,12 +38,13 @@ struct OnlineReward
 
     OnlineReward() = delete;
 
-    OnlineReward(uint32 id, bool isPerOnline, Seconds time) :
-        ID(id), IsPerOnline(isPerOnline), RewardTime(time) { }
+    OnlineReward(uint32 id, bool isPerOnline, Seconds time, uint8 minLevel) :
+        ID(id), IsPerOnline(isPerOnline), RewardTime(time), MinLevel(minLevel) { }
 
-    uint32 ID{ 0 };
+    uint32 ID{};
     bool IsPerOnline{ true };
-    Seconds RewardTime{0s };
+    Seconds RewardTime{};
+    uint8 MinLevel{ 1 };
 
     RewardsVector Items;
     RewardsVector Reputations;
@@ -81,7 +82,7 @@ public:
     // World hooks
     void Update(Milliseconds diff);
 
-    bool AddReward(uint32 id, bool isPerOnline, Seconds seconds, std::string_view items, std::string_view reputations, ChatHandler* handler = nullptr);
+    bool AddReward(uint32 id, bool isPerOnline, Seconds seconds, uint8 minLevel, std::string_view items, std::string_view reputations, ChatHandler* handler = nullptr);
     bool DeleteReward(uint32 id);
     bool IsExistReward(uint32 id);
 
@@ -93,6 +94,9 @@ public:
     void GetNextTimeForReward(Player* player, Seconds playedTime, OnlineReward const* onlineReward);
 
 private:
+    void MakeIpCache();
+    bool IsNormalIpPlayer(Player* player);
+
     void RewardPlayers();
     bool IsExistHistory(ObjectGuid::LowType lowGuid);
     void SaveRewardHistoryToDB();
@@ -105,21 +109,23 @@ private:
     void AddHistory(ObjectGuid::LowType lowGuid, uint32 rewardId, Seconds playerOnlineTime);
 
     void AddRewardHistoryAsync(ObjectGuid::LowType lowGuid, QueryResult result);
-    void CheckPlayerForReward(ObjectGuid::LowType lowGuid, Seconds playedTime, OnlineReward const* onlineReward);
+    void CheckPlayerForReward(Player* player, Seconds playedTime, OnlineReward const* onlineReward);
 
     void SendRewards();
     void ScheduleReward();
 
     // Config
-    bool _isEnable{ false };
-    bool _isPerOnlineEnable{ false };
-    bool _isPerTimeEnable{ false };
+    bool _isEnable{};
+    bool _isPerOnlineEnable{};
+    bool _isPerTimeEnable{};
     bool _isForceMailReward{ true };
+    uint32 _maxSameIpCount{ 3 };
 
     // Containers
     std::unordered_map<uint32, OnlineReward> _rewards;
     std::unordered_map<ObjectGuid::LowType, RewardHistory> _rewardHistory;
     std::unordered_map<ObjectGuid::LowType, RewardPending> _rewardPending;
+    std::unordered_map<std::string, std::vector<Player*>> _ipCache;
     TaskScheduler scheduler;
     std::size_t _lastId{};
 

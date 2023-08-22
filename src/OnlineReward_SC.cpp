@@ -48,7 +48,7 @@ public:
         return commandTable;
     }
 
-    static bool HandleOnlineRewardAddCommand(ChatHandler* handler, bool isPerOnline, uint32 secs, std::string_view items, std::optional<std::string_view> reputations)
+    static bool HandleOnlineRewardAddCommand(ChatHandler* handler, bool isPerOnline, uint32 secs, uint8 level, std::string_view items, std::optional<std::string_view> reputations)
     {
         if (!secs)
         {
@@ -60,7 +60,7 @@ public:
         auto timeString = Acore::Time::ToTimeString(seconds);
         timeString.append(Acore::StringFormatFmt(" ({})", seconds.count()));
 
-        if (sORMgr->AddReward(sORMgr->GetLastId() + 1, isPerOnline, seconds, items, reputations.value_or(""), handler))
+        if (sORMgr->AddReward(sORMgr->GetLastId() + 1, isPerOnline, seconds, level, items, reputations.value_or(""), handler))
             handler->PSendSysMessage("> Награда добавлена");
 
         return true;

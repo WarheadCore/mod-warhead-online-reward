@@ -3,6 +3,7 @@ CREATE TABLE `wh_online_rewards` (
   `ID` int(11) NOT NULL AUTO_INCREMENT,
   `IsPerOnline` tinyint(1) NOT NULL,
   `Seconds` int(20) NOT NULL DEFAULT 0,
+  `MinLevel` tinyint(3) NOT NULL DEFAULT 1,
   `Items` longtext CHARACTER SET utf8mb4 DEFAULT "",
   `Reputations` longtext CHARACTER SET utf8mb4 DEFAULT "",
   PRIMARY KEY (`ID`,`IsPerOnline`,`Seconds`) USING BTREE

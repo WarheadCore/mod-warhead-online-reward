@@ -118,6 +118,7 @@ void OnlineRewardMgr::LoadConfig(bool reload)
     _isPerOnlineEnable = sConfigMgr->GetOption<bool>("OR.PerOnline.Enable", false);
     _isPerTimeEnable = sConfigMgr->GetOption<bool>("OR.PerTime.Enable", false);
     _isForceMailReward = sConfigMgr->GetOption<bool>("OR.ForceSendMail.Enable", false);
+    _maxSameIpCount = sConfigMgr->GetOption<uint32>("OR.MaxSameIpCount", 3);
 
     if (!_isPerOnlineEnable && !_isPerTimeEnable)
     {
@@ -179,7 +180,7 @@ void OnlineRewardMgr::LoadDBData()
     if (!_rewards.empty())
         _rewards.clear();
 
-    QueryResult result = CharacterDatabase.Query("SELECT `ID`, `IsPerOnline`, `Seconds`, `Items`, `Reputations` FROM `wh_online_rewards`");
+    QueryResult result = CharacterDatabase.Query("SELECT `ID`, `IsPerOnline`, `Seconds`, `MinLevel`, `Items`, `Reputations` FROM `wh_online_rewards`");
     if (!result)
     {
         LOG_WARN("module.or", "> DB table `wh_online_rewards` is empty! Disable module");
@@ -193,10 +194,11 @@ void OnlineRewardMgr::LoadDBData()
         auto id             = row[0].Get<uint32>();
         auto isPerOnline    = row[1].Get<bool>();
         auto seconds        = row[2].Get<int32>();
-        auto items          = row[3].Get<std::string_view>();
-        auto reputations    = row[4].Get<std::string_view>();
+        auto minLevel       = row[3].Get<uint8>();
+        auto items          = row[4].Get<std::string_view>();
+        auto reputations    = row[5].Get<std::string_view>();
 
-        AddReward(id, isPerOnline, Seconds(seconds), items, reputations);
+        AddReward(id, isPerOnline, Seconds(seconds), minLevel, items, reputations);
     }
 
     if (_rewards.empty())
@@ -212,7 +214,7 @@ void OnlineRewardMgr::LoadDBData()
     LOG_INFO("module.or", "");
 }
 
-bool OnlineRewardMgr::AddReward(uint32 id, bool isPerOnline, Seconds seconds, std::string_view items, std::string_view reputations, ChatHandler* handler /*= nullptr*/)
+bool OnlineRewardMgr::AddReward(uint32 id, bool isPerOnline, Seconds seconds, uint8 minLevel, std::string_view items, std::string_view reputations, ChatHandler* handler /*= nullptr*/)
 {
     auto SendErrorMessage = [handler](std::string_view message)
     {
@@ -235,7 +237,13 @@ bool OnlineRewardMgr::AddReward(uint32 id, bool isPerOnline, Seconds seconds, st
         return false;
     }
 
-    auto data = OnlineReward(id, isPerOnline, seconds);
+    if (minLevel == 0 || minLevel > 80)
+    {
+        SendErrorMessage(Acore::StringFormatFmt("> OnlineRewardMgr::AddReward: Incorrect level: {}", minLevel));
+        return false;
+    }
+
+    OnlineReward data(id, isPerOnline, seconds, minLevel);
     auto const& itemData = Acore::Tokenize(items, ',', false);
     auto const& reputationsData = Acore::Tokenize(reputations, ',', false);
 
@@ -392,9 +400,11 @@ void OnlineRewardMgr::RewardPlayers()
     if (sessions.empty())
         return;
 
+    MakeIpCache();
+
     for (auto const& [accountID, session] : sessions)
     {
-        auto const& player = session->GetPlayer();
+        auto player = session->GetPlayer();
         if (!player || !player->IsInWorld())
             continue;
 
@@ -409,9 +419,14 @@ void OnlineRewardMgr::RewardPlayers()
             if (!reward.IsPerOnline && !_isPerTimeEnable)
                 continue;
 
-            CheckPlayerForReward(lowGuid, playedTimeSec, &reward);
+            if (!IsNormalIpPlayer(player))
+                continue;
+
+            CheckPlayerForReward(player, playedTimeSec, &reward);
         }
     }
+
+    _ipCache.clear();
 
     // Send reward
     SendRewards();
@@ -577,21 +592,22 @@ void OnlineRewardMgr::AddRewardHistoryAsync(ObjectGuid::LowType lowGuid, QueryRe
 
     RewardHistory rewardHistory;
 
-    do
-    {
-        auto const& [rewardID, rewardedSeconds] = result->FetchTuple<uint32, Seconds>();
-        rewardHistory.emplace_back(rewardID, rewardedSeconds);
-
-    } while (result->NextRow());
+    for (auto const& row : *result)
+        rewardHistory.emplace_back(row[0].Get<uint32>(), row[1].Get<Seconds>());
 
     _rewardHistory.emplace(lowGuid, rewardHistory);
     LOG_DEBUG("module.or", "> OR: Added history for player with guid {}", lowGuid);
 }
 
-void OnlineRewardMgr::CheckPlayerForReward(ObjectGuid::LowType lowGuid, Seconds playedTime, OnlineReward const* onlineReward)
+void OnlineRewardMgr::CheckPlayerForReward(Player* player, Seconds playedTime, OnlineReward const* onlineReward)
 {
-    if (!onlineReward || !lowGuid || playedTime == 0s)
+    if (!onlineReward || !player || playedTime == 0s)
         return;
+
+    if (onlineReward->MinLevel > player->GetLevel())
+        return;
+
+    auto lowGuid{ player->GetGUID().GetCounter() };
 
     auto AddToStore = [this, onlineReward](ObjectGuid::LowType playerGuid)
     {
@@ -713,4 +729,58 @@ bool OnlineRewardMgr::DeleteReward(uint32 id)
 OnlineReward const* OnlineRewardMgr::GetOnlineReward(uint32 id)
 {
     return Acore::Containers::MapGetValuePtr(_rewards, id);
+}
+
+void OnlineRewardMgr::MakeIpCache()
+{
+    if (!_ipCache.empty())
+        _ipCache.clear();
+
+    auto const& sessions = sWorld->GetAllSessions();
+    if (sessions.empty())
+        return;
+
+    for (auto const& [accId, session] : sessions)
+    {
+        auto player{ session->GetPlayer() };
+        if (!player || !player->IsInWorld())
+            continue;
+
+        auto ip{ session->GetRemoteAddress() };
+
+        auto itr = _ipCache.find(ip);
+        if (itr == _ipCache.end())
+        {
+            _ipCache.emplace(ip, std::vector<Player*>{ player });
+            continue;
+        }
+
+        itr->second.emplace_back(player);
+    }
+
+    for (auto& [ip, players] : _ipCache)
+    {
+        if (players.size() == 1)
+            continue;
+
+        std::sort(players.begin(), players.end(), [](Player* player1, Player* player2)
+        {
+            return player1->GetTotalPlayedTime() > player2->GetTotalPlayedTime();
+        });
+
+        players.resize(_maxSameIpCount);
+    }
+}
+
+bool OnlineRewardMgr::IsNormalIpPlayer(Player* player)
+{
+    auto ip{ player->GetSession()->GetRemoteAddress() };
+
+    auto itr = _ipCache.find(ip);
+    if (itr == _ipCache.end())
+        return false;
+
+    auto& players{ itr->second };
+    auto exist = std::find(players.begin(), players.end(), player);
+    return exist != players.end();
 }
