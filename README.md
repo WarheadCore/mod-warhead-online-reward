@@ -10,6 +10,6 @@
 ## How to
 - For add rewards need using command `.or add`
 ```
-.or add false 360 37711:1 71:5
-.or add true 10 37711:5
+.or add false 360 10 37711:1 71:5
+.or add true 10 80 37711:5
 ```
