@@ -419,9 +419,6 @@ void OnlineRewardMgr::RewardPlayers()
             if (!reward.IsPerOnline && !_isPerTimeEnable)
                 continue;
 
-            if (!IsNormalIpPlayer(player))
-                continue;
-
             CheckPlayerForReward(player, playedTimeSec, &reward);
         }
     }
@@ -490,9 +487,7 @@ Seconds OnlineRewardMgr::GetHistorySecondsForReward(ObjectGuid::LowType lowGuid,
 
 void OnlineRewardMgr::SendRewardForPlayer(Player* player, uint32 rewardID)
 {
-    //LOG_TRACE("module.or", "Send reward for player guid {}. RewardSeconds {}", player->GetGUID().GetCounter(), secondsOnine.count());
-
-    auto const& onlineReward = GetOnlineReward(rewardID);
+    auto onlineReward = GetOnlineReward(rewardID);
     if (!onlineReward)
         return;
 
@@ -609,8 +604,11 @@ void OnlineRewardMgr::CheckPlayerForReward(Player* player, Seconds playedTime, O
 
     auto lowGuid{ player->GetGUID().GetCounter() };
 
-    auto AddToStore = [this, onlineReward](ObjectGuid::LowType playerGuid)
+    auto AddToStore = [this, onlineReward, player](ObjectGuid::LowType playerGuid)
     {
+        if (!IsNormalIpPlayer(player))
+            return;
+
         auto const& itr = _rewardPending.find(playerGuid);
         if (itr == _rewardPending.end())
         {
@@ -626,21 +624,13 @@ void OnlineRewardMgr::CheckPlayerForReward(Player* player, Seconds playedTime, O
     if (onlineReward->IsPerOnline)
     {
         if (playedTime >= onlineReward->RewardTime && rewardedSeconds == 0s)
-        {
             AddToStore(lowGuid);
-            AddHistory(lowGuid, onlineReward->ID, playedTime);
-        }
-
-        return;
     }
-
-    if (!onlineReward->IsPerOnline)
+    else
     {
         for (Seconds diffTime{ onlineReward->RewardTime }; diffTime < playedTime; diffTime += onlineReward->RewardTime)
-        {
             if (rewardedSeconds < diffTime)
                 AddToStore(lowGuid);
-        }
     }
 
     AddHistory(lowGuid, onlineReward->ID, playedTime);
