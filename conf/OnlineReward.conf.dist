@@ -41,12 +41,17 @@
 #        Description: Max same ip count at reward check
 #        Default: 3
 #
+#    OR.SkipAfkPlayers.Enable
+#        Description: Skip check afk players
+#        Default: 1
+#
 
 OR.Enable = 0
 OR.PerOnline.Enable = 1
 OR.PerTime.Enable = 1
 OR.ForceSendMail.Enable = 0
 OR.MaxSameIpCount = 3
+OR.SkipAfkPlayers.Enable = 1
 
 ###################################################################################################
 #

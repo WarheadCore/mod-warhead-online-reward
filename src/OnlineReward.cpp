@@ -119,6 +119,7 @@ void OnlineRewardMgr::LoadConfig(bool reload)
     _isPerTimeEnable = sConfigMgr->GetOption<bool>("OR.PerTime.Enable", false);
     _isForceMailReward = sConfigMgr->GetOption<bool>("OR.ForceSendMail.Enable", false);
     _maxSameIpCount = sConfigMgr->GetOption<uint32>("OR.MaxSameIpCount", 3);
+    _skipAfkPlayers = sConfigMgr->GetOption<bool>("OR.SkipAfkPlayers.Enable", true);
 
     if (!_isPerOnlineEnable && !_isPerTimeEnable)
     {
@@ -408,7 +409,9 @@ void OnlineRewardMgr::RewardPlayers()
         if (!player || !player->IsInWorld())
             continue;
 
-        auto const lowGuid = player->GetGUID().GetCounter();
+        if (_skipAfkPlayers && player->isAFK())
+            continue;
+
         Seconds playedTimeSec{ player->GetTotalPlayedTime() };
 
         for (auto const& [rewardID, reward] : _rewards)
@@ -734,6 +737,9 @@ void OnlineRewardMgr::MakeIpCache()
     {
         auto player{ session->GetPlayer() };
         if (!player || !player->IsInWorld())
+            continue;
+
+        if (_skipAfkPlayers && player->isAFK())
             continue;
 
         auto ip{ session->GetRemoteAddress() };

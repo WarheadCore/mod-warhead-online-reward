@@ -119,6 +119,7 @@ private:
     bool _isPerOnlineEnable{};
     bool _isPerTimeEnable{};
     bool _isForceMailReward{ true };
+    bool _skipAfkPlayers{ true };
     uint32 _maxSameIpCount{ 3 };
 
     // Containers
