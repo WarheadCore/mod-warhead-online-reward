@@ -409,9 +409,6 @@ void OnlineRewardMgr::RewardPlayers()
         if (!player || !player->IsInWorld())
             continue;
 
-        if (_skipAfkPlayers && player->isAFK())
-            continue;
-
         Seconds playedTimeSec{ player->GetTotalPlayedTime() };
 
         for (auto const& [rewardID, reward] : _rewards)
@@ -602,14 +599,17 @@ void OnlineRewardMgr::CheckPlayerForReward(Player* player, Seconds playedTime, O
     if (!onlineReward || !player || playedTime == 0s)
         return;
 
-    if (onlineReward->MinLevel > player->GetLevel())
-        return;
-
     auto lowGuid{ player->GetGUID().GetCounter() };
 
     auto AddToStore = [this, onlineReward, player](ObjectGuid::LowType playerGuid)
     {
-        if (!IsNormalIpPlayer(player))
+        if (!onlineReward->IsPerOnline && !IsNormalIpPlayer(player))
+            return;
+
+        if (_skipAfkPlayers && player->isAFK() && !onlineReward->IsPerOnline)
+            return;
+
+        if (onlineReward->MinLevel > player->GetLevel())
             return;
 
         auto const& itr = _rewardPending.find(playerGuid);
@@ -737,9 +737,6 @@ void OnlineRewardMgr::MakeIpCache()
     {
         auto player{ session->GetPlayer() };
         if (!player || !player->IsInWorld())
-            continue;
-
-        if (_skipAfkPlayers && player->isAFK())
             continue;
 
         auto ip{ session->GetRemoteAddress() };
